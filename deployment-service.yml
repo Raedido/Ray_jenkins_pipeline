@@ -14,22 +14,23 @@ spec:
     spec:
       containers:
         - name: bloggingapp
-          image: divyasatpute/bloggingapp:latest # Updated image to private DockerHub image
+          image: raedido/bloggingapp:latest # Updated image to your private DockerHub image
           imagePullPolicy: Always
           ports:
-            - containerPort: 8080
+            - containerPort: 8080 # The application inside the container still listens on 8080
       imagePullSecrets:
         - name: regcred # Reference to the Docker registry secret
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: bloggingapp-ssvc
+  name: bloggingapp-svc
 spec:
   selector:
     app: bloggingapp
   ports:
     - protocol: "TCP"
-      port: 80
-      targetPort: 8080 
+      port: 8081       # External port exposed by the service (different from Jenkins' 8080)
+      targetPort: 8080 # Internal container port remains 8080
   type: LoadBalancer
+
