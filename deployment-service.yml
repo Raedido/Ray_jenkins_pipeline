@@ -1,36 +1,51 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bloggingapp-deployment
+  name: blogging-app-deployment
+  namespace: webapps
+  labels:
+    app: my-app
 spec:
+  replicas: 2
   selector:
     matchLabels:
-      app: bloggingapp
-  replicas: 2
+      app: my-app
   template:
     metadata:
       labels:
-        app: bloggingapp
+        app: my-app
     spec:
+      serviceAccountName: jenkins
       containers:
-        - name: bloggingapp
-          image: raedido/bloggingapp:latest # Updated image to your private DockerHub image
-          imagePullPolicy: Always
-          ports:
-            - containerPort: 8080 # The application inside the container still listens on 8080
+      - name: blogging-app
+        image: raedido/bloggingapp:latest
+        ports:
+        - containerPort: 8080  # Updated to match the new application port
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: production
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "500m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
       imagePullSecrets:
-        - name: regcred # Reference to the Docker registry secret
+      - name: regcred
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: bloggingapp-svc
+  name: blogging-app-service
+  namespace: webapps
+  labels:
+    app: my-app
 spec:
-  selector:
-    app: bloggingapp
-  ports:
-    - protocol: "TCP"
-      port: 8081       # External port exposed by the service (different from Jenkins' 8080)
-      targetPort: 8080 # Internal container port remains 8080
   type: LoadBalancer
-
+  selector:
+    app: my-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080  # Updated to match the application port
