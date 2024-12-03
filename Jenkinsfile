@@ -86,44 +86,46 @@ pipeline {
                 }
             }
         }
-        stage('K8s-Deploy') {
+        stage('Deploy to Kubernetes') {
             steps {
-                withKubeConfig(
-                    caCertificate: '', 
-                    clusterName: 'devopsshack-cluster', 
-                    contextName: '', 
-                    credentialsId: 'k8-cred', 
-                    namespace: 'webapps', 
-                    restrictKubeConfigAccess: false, 
-                    serverUrl: 'https://0D7DFCF662ECC24043497267C6A5BDEB.gr7.ap-south-1.eks.amazonaws.com'
-                ) {
-                    sh 'kubectl apply -f deployment-service.yml'
-                    sleep 20
+                script {
+                    withKubeConfig([credentialsId: 'k8-cred']) {
+                        sh '''
+                        kubectl apply -f deployment-service.yml
+                        DEPLOYMENT_NAME=$(kubectl get deployment -n webapps --selector=app=my-app -o jsonpath="{.items[0].metadata.name}")
+                        kubectl rollout status deployment/$DEPLOYMENT_NAME -n webapps --timeout=60s
+                        '''
+                    }
                 }
             }
         }
-        stage('Verify the Deployment') {
+ 
+        stage('Verify Kubernetes Deployment') {
             steps {
-                withKubeConfig(
-                    caCertificate: '', 
-                    clusterName: 'devopsshack-cluster', 
-                    contextName: '', 
-                    credentialsId: 'k8-cred', 
-                    namespace: 'webapps', 
-                    restrictKubeConfigAccess: false, 
-                    serverUrl: 'https://0D7DFCF662ECC24043497267C6A5BDEB.gr7.ap-south-1.eks.amazonaws.com'
-                ) {
-                    sh 'kubectl get pods'
-                    sh 'kubectl get svc'
+                script {
+                    withKubeConfig([credentialsId: 'k8-cred']) {
+                        sh '''
+                        kubectl get pods -n webapps
+                        kubectl get svc -n webapps
+                        '''
+                    }
                 }
             }
         }
     }
+ 
     post {
         always {
-            node('master') { // Explicitly specify the agent label, e.g., 'master' or your agent's label
-                archiveArtifacts artifacts: '*.html', allowEmptyArchive: true
-            }
+            echo 'Pipeline completed.'
+            cleanWs() // Clean up the workspace after the pipeline
+        }
+ 
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+ 
+        success {
+            echo 'Pipeline completed successfully.'
         }
     }
 }
